@@ -2,13 +2,13 @@ package model
 
 import (
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+	// "gorm.io/gorm"
 )
 
 type Wallet struct {
-	gorm.Model
-	ID      uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	Balance float64
+	// gorm.Model
+	ID      uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Balance float64   `gorm:"default:0"`
 }
 
 type OperationType string

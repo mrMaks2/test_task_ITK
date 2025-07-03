@@ -20,7 +20,7 @@ type Envs struct {
 
 func LoadEnvs() error {
 
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load("../config.env"); err != nil {
 		return err
 	}
 

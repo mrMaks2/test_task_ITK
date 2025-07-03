@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"net/http"
+	model "test_task_ITK/models"
+	"test_task_ITK/service"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"net/http"
-	"test_task_ITK/models"
-	"test_task_ITK/service"
 )
 
 type WalletHandler struct {
@@ -33,7 +34,8 @@ func (h *WalletHandler) HandleWalletOperation(c *gin.Context) {
 }
 
 func (h *WalletHandler) GetWalletBalance(c *gin.Context) {
-	walletId, err := uuid.Parse(c.Param("walletId"))
+	idStr := c.Param("wallet_id")
+	walletId, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet ID"})
 		return
