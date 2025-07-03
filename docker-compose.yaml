@@ -4,6 +4,7 @@ services:
 
   db_wallet:
     container_name: db_wallet
+    # env_file: config.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -16,9 +17,10 @@ services:
       - '-c'
       - 'port=${POSTGRES_PORT}'
     volumes:
-      - db_tasks_vol:/var/lib/postgresql/data
+      - db_wallet_vol:/var/lib/postgresql/data
     networks:
       - server_net
+    
   wallet:
     container_name: wallet
     build:

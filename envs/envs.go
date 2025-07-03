@@ -1,9 +1,9 @@
 package envs
 
 import (
-	"github.com/joho/godotenv"
-	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 var ServerEnvs Envs
@@ -20,9 +20,8 @@ type Envs struct {
 
 func LoadEnvs() error {
 
-	err := godotenv.Load("config.env")
-	if err != nil {
-		log.Fatal("Ошибка загрузки файла config.env:", err)
+	if err := godotenv.Load(); err != nil {
+		return err
 	}
 
 	ServerEnvs.POSTGRES_USER = os.Getenv("POSTGRES_USER")

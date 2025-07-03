@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"test_task_ITK/database"
+	"test_task_ITK/envs"
 	"test_task_ITK/handler"
 	"test_task_ITK/models"
 	"test_task_ITK/repository"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
@@ -31,13 +31,19 @@ var (
 
 func setup() {
 
-	err := godotenv.Load("config.env")
+	err := envs.LoadEnvs()
 	if err != nil {
-		fmt.Printf("Error loading .env file: %v\n", err)
+		fmt.Printf("Ошибка при закрузке файла config.env: %v\n", err)
 		os.Exit(1)
 	}
 
-	database.InitDatabase()
+	errDatabase := database.InitDatabase()
+	if errDatabase != nil {
+		fmt.Printf("Ошибка подключения к базе данных: %v\n", errDatabase)
+	} else {
+		fmt.Printf("Успешное подключение к базе данных")
+		database.DB.AutoMigrate(&model.Wallet{})
+	}
 	testDB = database.DB
 
 	walletRepository = repository.NewWalletRepository(testDB)
