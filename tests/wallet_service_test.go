@@ -1,0 +1,169 @@
+package tests
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"test_task_ITK/database"
+	"test_task_ITK/handler"
+	"test_task_ITK/models"
+	"test_task_ITK/repository"
+	"test_task_ITK/service"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
+)
+
+var (
+	router           *gin.Engine
+	walletRepository *repository.WalletRepository
+	walletService    *service.WalletService
+	walletHandler    *handler.WalletHandler
+	testDB           *gorm.DB
+)
+
+func setup() {
+
+	err := godotenv.Load("config.env")
+	if err != nil {
+		fmt.Printf("Error loading .env file: %v\n", err)
+		os.Exit(1)
+	}
+
+	database.InitDatabase()
+	testDB = database.DB
+
+	walletRepository = repository.NewWalletRepository(testDB)
+	walletService = service.NewWalletService(walletRepository)
+	walletHandler = handler.NewWalletHandler(walletService)
+
+	router = gin.Default()
+
+	v1 := router.Group("/api/v1")
+	{
+		v1.GET("/wallets/:wallet_id", walletHandler.GetWalletBalance)
+		v1.POST("/wallet", walletHandler.HandleWalletOperation)
+	}
+
+	cleanupDatabase()
+}
+
+func cleanupDatabase() {
+	testDB.Exec("DELETE FROM wallets")
+
+	testDB.Exec("ALTER SEQUENCE wallets_id_seq RESTART WITH 1")
+}
+
+func TestMain(m *testing.M) {
+	setup()
+	code := m.Run()
+	os.Exit(code)
+}
+
+func TestGetWalletBalance(t *testing.T) {
+	walletID := uuid.New()
+
+	wallet := model.Wallet{
+		ID:      walletID,
+		Balance: 100,
+	}
+	result := testDB.Create(&wallet)
+	assert.NoError(t, result.Error)
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/v1/wallets/%s", walletID.String()), nil)
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]int
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, 100, response["balance"])
+}
+
+func TestProcessTransactionDeposit(t *testing.T) {
+	walletID := uuid.New()
+	transaction := model.WalletTransaction{
+		WalletID:      walletID,
+		OperationType: model.Deposit,
+		Amount:        50,
+	}
+
+	jsonValue, _ := json.Marshal(transaction)
+
+	req, _ := http.NewRequest("POST", "/api/v1/wallet", bytes.NewBuffer(jsonValue))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	balance, err := walletRepository.GetWallet(req.Context(), walletID)
+	assert.NoError(t, err)
+	assert.Equal(t, 50, balance)
+}
+
+func TestProcessTransactionWithdraw(t *testing.T) {
+	walletID := uuid.New()
+	wallet := model.Wallet{
+		ID:      walletID,
+		Balance: 100,
+	}
+	result := testDB.Create(&wallet)
+	assert.NoError(t, result.Error)
+
+	transaction := model.WalletTransaction{
+		WalletID:      walletID,
+		OperationType: model.Withdraw,
+		Amount:        30,
+	}
+
+	jsonValue, _ := json.Marshal(transaction)
+
+	req, _ := http.NewRequest("POST", "/api/v1/wallet", bytes.NewBuffer(jsonValue))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	balance, err := walletRepository.GetWallet(req.Context(), walletID)
+	assert.NoError(t, err)
+	assert.Equal(t, 70, balance)
+}
+
+func TestProcessTransactionInvalidOperationType(t *testing.T) {
+
+	walletID := uuid.New()
+
+	transaction := model.WalletTransaction{
+		WalletID:      walletID,
+		OperationType: model.OperationType("INVALID"),
+		Amount:        30,
+	}
+
+	jsonValue, _ := json.Marshal(transaction)
+
+	req, _ := http.NewRequest("POST", "/api/v1/wallet", bytes.NewBuffer(jsonValue))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
