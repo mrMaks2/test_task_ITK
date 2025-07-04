@@ -41,7 +41,7 @@ func setup() {
 	if errDatabase != nil {
 		fmt.Printf("Ошибка подключения к базе данных: %v\n", errDatabase)
 	} else {
-		fmt.Printf("Успешное подключение к базе данных")
+		fmt.Printf("Успешное подключение к базе данных\n")
 		database.DB.AutoMigrate(&model.Wallet{})
 	}
 	testDB = database.DB

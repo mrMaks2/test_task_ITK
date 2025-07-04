@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"test_task_ITK/repository"
 )
 
@@ -15,10 +16,15 @@ func NewWalletService(repo *repository.WalletRepository) *WalletService {
 }
 
 func (s *WalletService) PerformOperation(ctx context.Context, walletId uuid.UUID, operationType string, amount float64) error {
-	if operationType == "WITHDRAW" {
-		amount = -amount
-	}
-	return s.repo.UpdateWallet(ctx, walletId, amount)
+	return s.repo.DB.Transaction(func(tx *gorm.DB) error {
+		if operationType == "WITHDRAW" {
+			amount = -amount
+		}
+		if err := s.repo.UpdateWallet(ctx, walletId, amount); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (s *WalletService) GetBalance(ctx context.Context, walletId uuid.UUID) (float64, error) {
